@@ -1,81 +1,9 @@
-<?php
-require_once 'config.php';
-$db = getDB();
-
-$settings = [];
-foreach ($db->query("SELECT key_name, value FROM settings")->fetchAll() as $r) {
-    $settings[$r['key_name']] = $r['value'];
-}
-
-$cats = $db->query("SELECT * FROM categories WHERE active=1 ORDER BY sort_order")->fetchAll();
-
-$prods = $db->query("
-    SELECT p.*,
-        (SELECT filename FROM product_images WHERE product_id=p.id AND is_primary=1 LIMIT 1) as main_img
-    FROM products p WHERE p.active=1 ORDER BY p.category_id, p.sort_order
-")->fetchAll();
-
-// Ek görseller
-$extraImgs = [];
-foreach ($db->query("SELECT product_id, filename FROM product_images WHERE is_primary=0 ORDER BY product_id, sort_order")->fetchAll() as $r) {
-    $extraImgs[$r['product_id']][] = UPLOAD_URL . $r['filename'];
-}
-
-$banners = $db->query("SELECT * FROM banners WHERE active=1 AND filename IS NOT NULL ORDER BY sort_order")->fetchAll();
-
-// JS için veri hazırla
-$jsProds = [];
-foreach ($prods as $p) {
-    $jsProds[] = [
-        'id'          => (int)$p['id'],
-        'name'        => $p['name'],
-        'code'        => $p['code'] ?? '',
-        'catId'       => (int)$p['category_id'],
-        'price'       => (float)$p['price'],
-        'oldPrice'    => $p['old_price'] ? (float)$p['old_price'] : null,
-        'unit'        => $p['unit'] ?? 'adet',
-        'badge'       => $p['badge'] ?? '',
-        'active'      => true,
-        'desc'        => $p['description'] ?? '',
-        'img'         => $p['main_img'] ? UPLOAD_URL . $p['main_img'] : '',
-        'extraImgs'   => $extraImgs[$p['id']] ?? [],
-    ];
-}
-
-$jsCats = [];
-foreach ($cats as $c) {
-    $jsCats[] = ['id' => (int)$c['id'], 'name' => $c['name'], 'active' => true];
-}
-
-$jsBanners = [];
-foreach ($banners as $b) {
-    $jsBanners[] = ['id' => (int)$b['id'], 'img' => UPLOAD_URL . $b['filename'], 'label' => ''];
-}
-
-$jsSettings = [
-    'brandName'  => $settings['brand_name'] ?? 'DEKOPANEL',
-    'brandSub'   => $settings['brand_sub'] ?? 'dekopanel.com.tr',
-    'phone'      => $settings['phone'] ?? '',
-    'whatsapp'   => $settings['whatsapp'] ?? '',
-    'email'      => $settings['email'] ?? '',
-    'address'    => $settings['address'] ?? '',
-    'instagram'  => $settings['instagram'] ?? '',
-    'facebook'   => $settings['facebook'] ?? '',
-    'iban'       => $settings['iban'] ?? '',
-    'ibanName'   => $settings['iban_name'] ?? '',
-    'about'      => $settings['about'] ?? '',
-    'logo'       => $settings['logo'] ?? '',
-];
-?>
 <!DOCTYPE html>
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-<title><?= htmlspecialchars($jsSettings['brandName']) ?> — Duvar Paneli & Dekorasyon</title>
+<title>DEKOPANEL — Duvar Paneli & Dekorasyon (Demo)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -231,7 +159,6 @@ header{background:rgba(10,10,10,.98);backdrop-filter:blur(12px);border-bottom:1p
 .m-old{font-size:16px;color:var(--m);text-decoration:line-through;margin-left:8px;}
 .m-unit{font-size:12px;color:var(--m);margin-top:-6px;}
 .m-desc{font-size:13.5px;line-height:1.75;color:var(--t);margin-top:6px;white-space:pre-wrap;}
-.m-desc ul,.m-desc ol{padding-left:18px;}
 .wa-big{width:100%;margin-top:auto;padding:14px;background:linear-gradient(135deg,var(--gold),var(--gd));color:#0A0A0A;border:none;font-size:13px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:.3s;border-radius:4px;}
 .wa-big:hover{opacity:.9;transform:scale(1.01);}
 .wa-secondary {
@@ -628,14 +555,10 @@ footer{background:var(--d2);border-top:1px solid rgba(232,88,10,.08);padding:48p
 <header>
   <div class="hdr">
     <div class="logo-a" onclick="goHome()">
-      <?php if($jsSettings['logo']): ?>
-        <img src="/uploads/<?= htmlspecialchars($jsSettings['logo']) ?>" alt="<?= htmlspecialchars($jsSettings['brandName']) ?>" style="max-height:52px;max-width:180px;object-fit:contain;">
-      <?php else: ?>
       <div class="logo-fb">
-        <span class="bn" id="bName"><?= htmlspecialchars($jsSettings['brandName']) ?></span>
-        <span class="bs" id="bSub"><?= htmlspecialchars($jsSettings['brandSub']) ?></span>
+        <span class="bn" id="bName">DEKOPANEL</span>
+        <span class="bs" id="bSub">dekopanel.com.tr</span>
       </div>
-      <?php endif; ?>
     </div>
     <div class="hdr-srch">
       <input type="text" id="srchInp" placeholder="Ürün adı veya stok kodu..." autocomplete="off" oninput="liveSearch(this.value)" onblur="setTimeout(closeSrch,200)">
@@ -651,7 +574,7 @@ footer{background:var(--d2);border-top:1px solid rgba(232,88,10,.08);padding:48p
         <span class="cart-hdr-badge" id="cartCount">0</span>
       </button>
 
-      <a id="waHdr" class="hl wa-hl" href="https://wa.me/<?= htmlspecialchars($jsSettings['whatsapp']) ?>" target="_blank">
+      <a id="waHdr" class="hl wa-hl" href="https://wa.me/905320000000" target="_blank">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347M12.05 21.785h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413"/></svg>
         WhatsApp
       </a>
@@ -704,10 +627,119 @@ footer{background:var(--d2);border-top:1px solid rgba(232,88,10,.08);padding:48p
 <div class="wix-sig">Web Tasarım: <a href="https://wixmedya.com" target="_blank">WixMedya — Reklam ve Web Hizmetleri</a></div>
 
 <script>
-var _PRODS   = <?= json_encode($jsProds, JSON_UNESCAPED_UNICODE) ?>;
-var _CATS    = <?= json_encode($jsCats, JSON_UNESCAPED_UNICODE) ?>;
-var _BANNERS = <?= json_encode($jsBanners, JSON_UNESCAPED_UNICODE) ?>;
-var _SETTINGS= <?= json_encode($jsSettings, JSON_UNESCAPED_UNICODE) ?>;
+// STATIC MOCK DATA FOR GITHUB PAGES PREVIEW
+var _SETTINGS = {
+  brandName: 'DEKOPANEL',
+  brandSub: 'dekopanel.com.tr',
+  phone: '905320000000',
+  whatsapp: '905320000000',
+  email: 'info@dekopanel.com.tr',
+  address: 'Dekorasyon Sanayi Sitesi A Blok No: 12, İstanbul',
+  instagram: 'dekopanel',
+  facebook: 'dekopanel',
+  iban: 'TR99 0006 2000 0001 2345 6789 01',
+  ibanName: 'Dekopanel Ahşap Dekorasyon San. Tic. Ltd. Şti.',
+  about: 'Dekopanel, evinizi ve ofisinizi modernleştiren premium duvar panelleri, lambri sistemleri ve dekoratif çıtalar üretmektedir.',
+  logo: ''
+};
+
+var _CATS = [
+  {id: 1, name: 'MDF Panel', active: true},
+  {id: 2, name: 'Akustik Panel', active: true},
+  {id: 3, name: 'Duvar Çıtası', active: true},
+  {id: 4, name: 'Osmanlı Motifler', active: true}
+];
+
+var _PRODS = [
+  {
+    id: 101,
+    name: 'Klasik Ceviz MDF Panel',
+    code: 'MDF-CVZ-01',
+    catId: 1,
+    price: 349.90,
+    oldPrice: 420.00,
+    unit: 'm²',
+    badge: 'Popüler',
+    active: true,
+    desc: 'Doğal ceviz kaplamalı ahşap lifli panel. Isı ve ses yalıtımına katkı sağlar, kolay montaj vidalama sistemine sahiptir.',
+    img: 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?auto=format&fit=crop&w=600&h=600&q=80',
+    extraImgs: []
+  },
+  {
+    id: 102,
+    name: 'Antrasit Meşe MDF Panel',
+    code: 'MDF-ANT-02',
+    catId: 1,
+    price: 389.00,
+    oldPrice: null,
+    unit: 'm²',
+    badge: 'Yeni',
+    active: true,
+    desc: 'Mat antrasit renkli meşe dokulu lüks duvar paneli. Modern iç mekân tasarımları için idealdir.',
+    img: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=600&h=600&q=80',
+    extraImgs: []
+  },
+  {
+    id: 201,
+    name: 'Premium Akustik Ahşap Panel',
+    code: 'AKU-PRM-10',
+    catId: 2,
+    price: 549.90,
+    oldPrice: 650.00,
+    unit: 'adet',
+    badge: '%15 İndirim',
+    active: true,
+    desc: 'Keçe tabanlı, gerçek meşe çıtalarla tasarlanmış üst düzey akustik yalıtım paneli. Eko ve ses yansımasını önler.',
+    img: 'https://images.unsplash.com/photo-1600121848594-d8644e57abab?auto=format&fit=crop&w=600&h=600&q=80',
+    extraImgs: []
+  },
+  {
+    id: 202,
+    name: 'Doğal Huş Akustik Panel',
+    code: 'AKU-HUS-11',
+    catId: 2,
+    price: 499.00,
+    oldPrice: null,
+    unit: 'adet',
+    badge: '',
+    active: true,
+    desc: 'İskandinav tarzı açık renk huş ağacı akustik çıtalar. İç mekanlara ferahlık ve konfor katar.',
+    img: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=600&h=600&q=80',
+    extraImgs: []
+  },
+  {
+    id: 301,
+    name: 'Klasik Duvar Çıtası (4cm)',
+    code: 'CIT-KLS-40',
+    catId: 3,
+    price: 45.00,
+    oldPrice: 55.00,
+    unit: 'metre',
+    badge: '',
+    active: true,
+    desc: 'Polimer sertleştirilmiş darbelere dayanıklı klasik çıta. Boyanabilir yüzeye sahiptir, silikonla yapıştırılır.',
+    img: 'https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=600&h=600&q=80',
+    extraImgs: []
+  },
+  {
+    id: 401,
+    name: 'Altın Varaklı Osmanlı Motifli Köşebent',
+    code: 'MOT-OSM-88',
+    catId: 4,
+    price: 180.00,
+    oldPrice: 220.00,
+    unit: 'adet',
+    badge: 'Özel Seri',
+    active: true,
+    desc: 'Geleneksel motiflerle bezenmiş, altın varak detaylı poliüretan tavan ve duvar köşebenti.',
+    img: 'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?auto=format&fit=crop&w=600&h=600&q=80',
+    extraImgs: []
+  }
+];
+
+var _BANNERS = [
+  {id: 1, img: 'https://images.unsplash.com/photo-1618219908412-a29a1bb7b86e?auto=format&fit=crop&w=1200&h=500&q=80', label: 'Lüksü Duvarlarınıza Taşıyın'}
+];
 
 var SLIDES = [
   {l:'MDF Panel Koleksiyonu'},
@@ -798,50 +830,50 @@ function updateCartUI() {
   
   var bodyEl = document.getElementById('cartDrawerBody');
   var ftEl = document.getElementById('cartDrawerFt');
+  
   if (!bodyEl) return;
   
   if (CART.length === 0) {
-    bodyEl.innerHTML = '<div class="cart-empty-msg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48" style="opacity:0.3; margin-bottom:12px;"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>Sepetiniz şu anda boş.</div>';
+    bodyEl.innerHTML = '<div class="cart-empty-msg"><svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.4;color:var(--gold);"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>Sepetiniz şu anda boş.</div>';
     if (ftEl) ftEl.style.display = 'none';
   } else {
     if (ftEl) ftEl.style.display = 'block';
-    bodyEl.innerHTML = CART.map(function(item) {
+    var html = '';
+    CART.forEach(function(item) {
       var p = P().find(function(x){return x.id===item.id;});
-      if (!p) return '';
-      var imgH = p.img && p.img.length > 10 ? '<img src="'+p.img+'" alt="">' : '<div style="width:100%;height:100%;background:var(--d5);display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" width="20" height="20"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>';
-      return '<div class="cart-item">' +
-        '<div class="cart-item-img">' + imgH + '</div>' +
+      if (!p) return;
+      var itemTotal = p.price * item.qty;
+      html += '<div class="cart-item">' +
+        '<div class="cart-item-img"><img src="' + p.img + '" alt=""></div>' +
         '<div class="cart-item-info">' +
-          '<div class="cart-item-name">' + esc(p.name) + '</div>' +
-          '<div class="cart-item-code">' + esc(p.code) + '</div>' +
-          '<div class="cart-item-price">' + p.price.toLocaleString('tr-TR', {minimumFractionDigits:2}) + ' ₺</div>' +
+          '<div class="cart-item-name">' + p.name + '</div>' +
+          '<div class="cart-item-code">' + p.code + '</div>' +
+          '<div class="cart-item-price">' + p.price.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ₺</div>' +
         '</div>' +
-        '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">' +
+        '<div class="cart-item-ctrl">' +
+          '<button class="cart-qty-btn" onclick="updateQty(' + p.id + ', -1)">-</button>' +
+          '<span class="cart-item-qty">' + item.qty + '</span>' +
+          '<button class="cart-qty-btn" onclick="updateQty(' + p.id + ', 1)">+</button>' +
           '<button class="cart-item-del" onclick="removeFromCart(' + p.id + ')">✕</button>' +
-          '<div class="cart-item-ctrl">' +
-            '<button class="cart-qty-btn" onclick="updateQty(' + p.id + ', -1)">-</button>' +
-            '<span class="cart-item-qty">' + item.qty + '</span>' +
-            '<button class="cart-qty-btn" onclick="updateQty(' + p.id + ', 1)">+</button>' +
-          '</div>' +
         '</div>' +
       '</div>';
-    }).join('');
+    });
+    bodyEl.innerHTML = html;
   }
 }
 
-function toggleCart(open) {
-  var b = document.getElementById('cartDrawerBackdrop');
-  if (!b) return;
-  if (open === true) {
-    b.classList.add('open');
+function toggleCart(show) {
+  var el = document.getElementById('cartDrawerBackdrop');
+  if (!el) return;
+  if (show === undefined) {
+    show = !el.classList.contains('open');
+  }
+  if (show) {
+    el.classList.add('open');
     document.body.style.overflow = 'hidden';
-  } else if (open === false) {
-    b.classList.remove('open');
-    document.body.style.overflow = '';
   } else {
-    var isOpen = b.classList.contains('open');
-    b.classList.toggle('open');
-    document.body.style.overflow = isOpen ? '' : 'hidden';
+    el.classList.remove('open');
+    document.body.style.overflow = '';
   }
 }
 
@@ -850,300 +882,304 @@ function openCheckout() {
   goPage('checkout');
 }
 
-function copyIban() {
-  var s = S();
-  navigator.clipboard.writeText(s.iban).then(function() {
-    alert("IBAN Kopyalandı!");
-  }).catch(function() {
-    alert("Kopyalanamadı, lütfen manuel kopyalayın.");
+// ROUTING AND PAGE MANAGER
+var curPage = 'home';
+var curCat  = 0;
+var searchQ = '';
+var slideIdx = 0;
+var slideInt = null;
+
+function renderNav(){
+  var html = '<a class="' + (curPage==='home'&&curCat===0?'act':'') + '" onclick="filterCat(0)">TÜM ÜRÜNLER</a>';
+  C().forEach(function(c){
+    html += '<a class="' + (curPage==='home'&&curCat===c.id?'act':'') + '" onclick="filterCat(' + c.id + ')">' + c.name + '</a>';
   });
+  document.getElementById('navIn').innerHTML = html;
 }
 
-// SLIDER OPERATIONS
-var si=0, stimer=null;
-function startSlider(){
-  si=0;
-  if(stimer) clearInterval(stimer);
-  if(SLIDES.length>1) stimer=setInterval(function(){sMove(1);},4500);
-}
-function sMove(d){ sTo((si+d+SLIDES.length)%SLIDES.length); }
-function sTo(i){
-  si=i;
-  var t=document.getElementById('slidesT');
-  if(t) t.style.transform='translateX(-'+i*100+'%)';
-  document.querySelectorAll('.s-dot').forEach(function(d,j){ d.classList.toggle('on',j===i); });
-  var banners=BN();
-  var slide=document.getElementById('sl'+i);
-  if(slide && banners[i] && banners[i].img){
-    var existing=slide.querySelector('img');
-    if(!existing){
-      var img=document.createElement('img');
-      img.src=banners[i].img;
-      img.alt='';
-      slide.insertBefore(img,slide.firstChild);
-    }
+function toggleMob(){
+  var m = document.getElementById('mobNav');
+  if(m.style.display==='block'){
+    m.style.display='none';
+  } else {
+    var html = '<a onclick="filterCat(0);toggleMob()">TÜM ÜRÜNLER</a>';
+    C().forEach(function(c){
+      html += '<a onclick="filterCat(' + c.id + ');toggleMob()">' + c.name + '</a>';
+    });
+    html += '<a onclick="goPage(\'contact\');toggleMob()">İletişim</a>';
+    m.innerHTML = html;
+    m.style.display = 'block';
   }
 }
 
-function buildNav(){
-  var cats=C();
-  var html='<a onclick="goHome()" class="act" id="nav-all">Tümü</a>';
-  cats.forEach(function(c){
-    html+='<a onclick="goCat('+c.id+')" id="nav-'+c.id+'">'+c.name+'</a>';
-  });
-  html+='<a onclick="goPage(\'bank\')">Banka Hesapları</a>';
-  html+='<a onclick="goPage(\'contact\')">İletişim</a>';
-  document.getElementById('navIn').innerHTML=html;
-
-  var mob='<a onclick="goHome();toggleMob()">Tümü</a>';
-  cats.forEach(function(c){
-    mob+='<a onclick="goCat('+c.id+');toggleMob()">'+c.name+'</a>';
-  });
-  mob+='<a onclick="goPage(\'bank\');toggleMob()">Banka Hesapları</a>';
-  mob+='<a onclick="goPage(\'contact\');toggleMob()">İletişim</a>';
-  document.getElementById('mobNav').innerHTML=mob;
-}
-function toggleMob(){
-  var m=document.getElementById('mobNav');
-  m.style.display=m.style.display==='block'?'none':'block';
+function renderFooter(){
+  var html = '<div class="ft-grid">' +
+    '<div class="ft-col">' +
+      '<div class="ft-brand">' + S().brandName + '</div>' +
+      '<p class="ft-desc">' + S().about + '</p>' +
+      '<div class="ft-soc">' +
+        '<a href="https://instagram.com/' + S().instagram + '" target="_blank">IG</a>' +
+        '<a href="https://facebook.com/' + S().facebook + '" target="_blank">FB</a>' +
+      '</div>' +
+    '</div>' +
+    '<div class="ft-col">' +
+      '<h4>Kategoriler</h4>';
+      C().forEach(function(c){
+        html += '<a onclick="filterCat(' + c.id + ')">' + c.name + '</a>';
+      });
+    html += '</div>' +
+    '<div class="ft-col">' +
+      '<h4>İletişim</h4>' +
+      '<p>' + S().address + '</p>' +
+      '<p style="margin-top:10px;">Tel: ' + S().phone + '</p>' +
+      '<p>E-posta: ' + S().email + '</p>' +
+    '</div>' +
+  '</div>' +
+  '<div class="ft-bot">' +
+    '<span>&copy; ' + new Date().getFullYear() + ' ' + S().brandName + '. Tüm Hakları Saklıdır.</span>' +
+    '<span>Altyapı: <a href="https://wixmedya.com" target="_blank">WixMedya</a></span>' +
+  '</div>';
+  document.getElementById('ftEl').innerHTML = html;
 }
 
 function goHome(){
-  var prods=P().filter(function(p){return p.active;});
-  var cats=C();
-  var slideHtml=SLIDES.map(function(sl,i){
-    var b=BN()[i];
-    var imgHtml=b&&b.img?'<img src="'+b.img+'" alt="" loading="lazy">':'';
-    return '<div class="slide" id="sl'+i+'">'+imgHtml+'</div>';
-  }).join('');
-  var dotsHtml=SLIDES.map(function(_,i){return '<div class="s-dot'+(i===0?' on':'')+'" onclick="sTo('+i+')"></div>';}).join('');
-
-  var catBar='<div class="cb on" onclick="filterGrid(0)" id="cb-all">Tümü ('+prods.length+')</div>';
-  cats.forEach(function(c){
-    var cnt=prods.filter(function(p){return p.catId===c.id;}).length;
-    catBar+='<div class="cb" onclick="filterGrid('+c.id+')" id="cb-'+c.id+'">'+c.name+' ('+cnt+')</div>';
-  });
-
-  document.getElementById('main').innerHTML=
-    '<div class="slider-w">'+
-      '<div class="slides-t" id="slidesT">'+slideHtml+'</div>'+
-      (SLIDES.length>1?'<button class="s-arr s-prev" onclick="sMove(-1)">&#8249;</button><button class="s-arr s-next" onclick="sMove(1)">&#8250;</button>':'')+
-      '<div class="s-dots">'+dotsHtml+'</div>'+
-    '</div>'+
-    '<div class="cat-bar"><div class="cat-bar-in" id="catBarIn">'+catBar+'</div></div>'+
-    '<div class="sec"><div class="sec-hd"><h2 id="secTitle">Tüm Ürünler</h2></div><div class="pg" id="prodGrid"></div></div>';
-
-  renderGrid(prods);
-  startSlider();
-  setNav('nav-all');
+  curPage = 'home';
+  curCat = 0;
+  searchQ = '';
+  renderNav();
+  render();
 }
 
-function filterGrid(catId){
-  var prods=P().filter(function(p){return p.active&&(catId===0||p.catId===catId);});
-  document.querySelectorAll('.cb').forEach(function(b){b.classList.remove('on');});
-  var btn=document.getElementById(catId?'cb-'+catId:'cb-all');
-  if(btn) btn.classList.add('on');
-  var cat=C().find(function(c){return c.id===catId;});
-  var title=document.getElementById('secTitle');
-  if(title) title.textContent=cat?cat.name:'Tüm Ürünler';
-  renderGrid(prods);
+function filterCat(id){
+  curPage = 'home';
+  curCat = id;
+  searchQ = '';
+  renderNav();
+  render();
 }
 
-function renderGrid(prods){
-  var g=document.getElementById('prodGrid');
-  if(!g) return;
-  g.innerHTML=prods.map(function(p){ return pCard(p); }).join('') ||
-    '<p style="color:var(--m);padding:40px;grid-column:1/-1;text-align:center">Bu kategoride ürün bulunamadı.</p>';
+function goPage(p){
+  curPage = p;
+  renderNav();
+  render();
 }
 
-function pCard(p){
-  var imgH=p.img&&p.img.length>10?'<img src="'+p.img+'" alt="'+esc(p.name)+'" loading="lazy">':
-    '<div class="pc-no"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" width="52" height="52"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>';
-  var badgeH=p.badge?'<div class="pc-bdg '+(p.badge==='Yeni'?'bn':'bs')+'">'+p.badge+'</div>':'';
-  var oldH=p.oldPrice?'<span class="pc-old">'+p.oldPrice.toLocaleString('tr-TR', {minimumFractionDigits:2})+' ₺</span>':'';
-  return '<div class="pc" onclick="openModal('+p.id+')">'+
-    '<div class="pc-img">'+imgH+badgeH+'</div>'+
-    '<div class="pc-body">'+
-      '<h3>'+esc(p.name)+'</h3>'+
-      '<div class="pc-code">'+esc(p.code)+'</div>'+
-      '<div class="pc-price-wrap">'+
-        '<div class="pc-price">'+p.price.toLocaleString('tr-TR', {minimumFractionDigits:2})+' ₺</div>'+
-        oldH+
-      '</div>'+
-      '<div class="pc-unit">/ 1 '+esc(p.unit)+'</div>'+
-      '<div class="pc-foot">'+
-        '<button class="pc-btn pc-i" onclick="event.stopPropagation();openModal('+p.id+')">İncele</button>'+
-        '<button class="pc-btn pc-q" onclick="event.stopPropagation();addToCart('+p.id+')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg> Sepete Ekle</button>'+
-      '</div>'+
-    '</div></div>';
-}
-
-function openModal(id){
-  var p=P().find(function(x){return x.id===id;}); if(!p) return;
-  var wa=S().whatsapp.replace(/\D/g,'');
-  var msg=encodeURIComponent('Merhaba, '+p.name+' ('+p.code+') ürünü hakkında detaylı bilgi almak istiyorum.');
-  var allImgs=[p.img].concat(p.extraImgs||[]).filter(function(x){return x&&x.length>5;});
-  var mainImg=allImgs[0]||'';
-
-  var galleryHtml='<div class="modal-gallery">'+
-    '<div class="modal-main-img" id="modalMainImg">'+
-      (mainImg?'<img src="'+mainImg+'" alt="'+esc(p.name)+'" id="mainImgEl">':
-        '<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="rgba(232,88,10,.1)" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>')+
-    '</div>';
-  if(allImgs.length>1){
-    galleryHtml+='<div class="modal-thumbs">';
-    allImgs.forEach(function(img,i){
-      galleryHtml+='<div class="modal-thumb'+(i===0?' act':'')+'" onclick="switchImg(\''+img+'\',this)"><img src="'+img+'" alt=""></div>';
-    });
-    galleryHtml+='</div>';
-  }
-  galleryHtml+='</div>';
-
-  var descHtml=p.desc?p.desc.replace(/\n/g,'<br>'):'';
-
-  var infoHtml='<div class="modal-info">'+
-    (p.badge?'<div style="display:inline-block;background:var(--gold);color:#0A0A0A;font-size:9px;font-weight:700;padding:3px 9px;letter-spacing:.8px;text-transform:uppercase;margin-bottom:4px;width:max-content;border-radius:2px;">'+p.badge+'</div>':'')+
-    '<div class="m-name">'+esc(p.name)+'</div>'+
-    '<div class="m-code">Stok Kodu: '+esc(p.code)+'</div>'+
-    '<div class="m-price">'+p.price.toLocaleString('tr-TR', {minimumFractionDigits:2})+' ₺'+(p.oldPrice?'<span class="m-old">'+p.oldPrice.toLocaleString('tr-TR', {minimumFractionDigits:2})+' ₺</span>':'')+'</div>'+
-    '<div class="m-unit">Birim: 1 '+esc(p.unit)+'</div>'+
-    '<div class="m-desc">'+descHtml+'</div>'+
-    '<button class="wa-big" onclick="addToCart('+p.id+'); closeModal();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14" style="display:inline-block;vertical-align:middle;margin-right:6px;"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg> Sepete Ekle</button>'+
-    '<a class="wa-big wa-secondary" href="https://wa.me/'+wa+'?text='+msg+'" target="_blank">'+waIcon()+' WhatsApp İle Bilgi Al</a>'+
-  '</div>';
-
-  document.getElementById('modalBody').innerHTML=galleryHtml+infoHtml;
-  document.getElementById('prodModal').classList.add('open');
-  document.body.style.overflow='hidden';
-}
-
-function switchImg(src, el){
-  var mainEl=document.getElementById('mainImgEl');
-  if(mainEl) mainEl.src=src;
-  document.querySelectorAll('.modal-thumb').forEach(function(t){t.classList.remove('act');});
-  if(el) el.classList.add('act');
-}
-
-function closeModal(){
-  document.getElementById('prodModal').classList.remove('open');
-  document.body.style.overflow='';
-}
-document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal();});
-
-function goCat(id){
-  var cat=C().find(function(c){return c.id===id;}); if(!cat) return;
-  var prods=P().filter(function(p){return p.active&&p.catId===id;});
-  document.getElementById('main').innerHTML=
-    '<div class="pg-hd"><div class="pg-bc"><a onclick="goHome()">Ana Sayfa</a> / '+cat.name+'</div><h1>'+cat.name+'</h1></div>'+
-    '<div class="sec"><div class="pg" id="prodGrid"></div></div>';
-  renderGrid(prods);
-  setNav('nav-'+id);
-}
-
-function goPage(pg){
-  var s=S();
-  if(pg==='bank'){
-    document.getElementById('main').innerHTML=
-      '<div class="pg-hd"><div class="pg-bc"><a onclick="goHome()">Ana Sayfa</a> / Banka Hesaplarımız</div><h1>Banka Hesaplarımız</h1></div>'+
-      '<div class="pg-body"><p style="color:var(--m);margin-bottom:28px;font-size:14px;line-height:1.85;">Havale ve EFT ödemelerinde açıklama kısmına adınızı ve sipariş detayınızı yazmayı unutmayınız.</p>'+
-      '<div class="bank"><strong>BANKA HESABI</strong>'+
-      '<p>'+s.ibanName+'</p>'+
-      '<div class="iban-val">'+s.iban+'</div>'+
-      '</div></div>';
-  } else if(pg==='contact'){
-    document.getElementById('main').innerHTML=
-      '<div class="pg-hd"><div class="pg-bc"><a onclick="goHome()">Ana Sayfa</a> / İletişim</div><h1>İletişim</h1></div>'+
-      '<div class="pg-body">'+
-      '<div class="bank"><strong>TELEFON</strong><p>'+s.phone+'</p></div>'+
-      '<div class="bank"><strong>E-POSTA</strong><p>'+s.email+'</p></div>'+
-      '<div class="bank"><strong>ADRES</strong><p>'+s.address+'</p></div>'+
-      '<div style="margin-top:16px;display:flex;gap:12px;">'+
-      (s.whatsapp?'<a href="https://wa.me/'+s.whatsapp+'" target="_blank" style="background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;padding:12px 20px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px;border-radius:4px;">'+waIcon()+' WhatsApp</a>':'')+
-      '</div></div>';
-  } else if(pg==='checkout'){
-    if(CART.length===0){
-      alert("Sepetiniz boş!");
-      goHome();
-      return;
+function render(){
+  window.scrollTo(0,0);
+  var main = document.getElementById('main');
+  
+  if(curPage === 'home'){
+    var html = '';
+    
+    // BANNER SLIDER
+    if(BN().length > 0 && curCat === 0 && !searchQ){
+      html += '<div class="slider-w">' +
+        '<div class="slides-t" id="slides">';
+        BN().forEach(function(b){
+          html += '<div class="slide"><img src="' + b.img + '" alt=""></div>';
+        });
+      html += '</div>' +
+        '<button class="s-arr s-prev" onclick="moveSlide(-1)">❮</button>' +
+        '<button class="s-arr s-next" onclick="moveSlide(1)">❯</button>' +
+        '<div class="s-dots" id="sDots"></div>' +
+      '</div>';
     }
     
-    var summaryItemsHtml = CART.map(function(item) {
-      var p = P().find(function(x){return x.id===item.id;});
-      if(!p) return '';
-      var itemTotal = p.price * item.qty;
-      return '<div class="co-summary-item">' +
-        '<span>' + esc(p.name) + ' <strong style="color:var(--gold)">x' + item.qty + '</strong></span>' +
-        '<span style="font-weight:600; color:var(--w);">' + itemTotal.toLocaleString('tr-TR', {minimumFractionDigits:2}) + ' ₺</span>' +
-      '</div>';
-    }).join('');
+    // CAT BAR
+    html += '<div class="cat-bar"><div class="cat-bar-in">' +
+      '<button class="cb ' + (curCat===0?'on':'') + '" onclick="filterCat(0)">HEPSİ</button>';
+      C().forEach(function(c){
+        html += '<button class="cb ' + (curCat===c.id?'on':'') + '" onclick="filterCat(' + c.id + ')">' + c.name + '</button>';
+      });
+    html += '</div></div>';
     
-    var cartTotal = getCartTotal();
-
-    document.getElementById('main').innerHTML = 
-      '<div class="pg-hd"><div class="pg-bc"><a onclick="goHome()">Ana Sayfa</a> / Havale İle Sipariş</div><h1>Siparişi Tamamla</h1></div>' +
-      '<div class="pg-body">' +
-        '<div class="checkout-layout">' +
-          '<!-- Sol Kolon: Form -->' +
-          '<div class="co-form-panel">' +
-            '<h2 class="co-box-title">Teslimat ve İletişim Bilgileri</h2>' +
-            '<form id="coForm" onsubmit="submitOrder(event)">' +
-              '<div class="co-form-group">' +
-                '<label for="coName">Ad Soyad *</label>' +
-                '<input type="text" id="coName" class="co-input" required placeholder="Adınız ve Soyadınız">' +
-              '</div>' +
-              '<div class="co-form-group">' +
-                '<label for="coPhone">Telefon Numarası *</label>' +
-                '<input type="tel" id="coPhone" class="co-input" required placeholder="05__ ___ ____">' +
-              '</div>' +
-              '<div class="co-form-group">' +
-                '<label for="coAddress">Teslimat Adresi *</label>' +
-                '<textarea id="coAddress" class="co-input" required rows="4" placeholder="Siparişinizin gönderileceği tam adres" style="resize:vertical; font-family:inherit;"></textarea>' +
-              '</div>' +
-              '<div class="co-form-group">' +
-                '<label for="coNote">Sipariş Notu (Opsiyonel)</label>' +
-                '<textarea id="coNote" class="co-input" rows="2" placeholder="Belirtmek istediğiniz özel bir not" style="resize:vertical; font-family:inherit;"></textarea>' +
-              '</div>' +
-              '<button type="submit" class="checkout-btn" style="margin-top:10px;">' +
-                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="display:inline-block;vertical-align:middle;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>' +
-                'Havale/EFT İle Siparişi Onayla' +
-              '</button>' +
-            '</form>' +
-          '</div>' +
+    // PRODUCT GRID
+    var heading = 'Ürünlerimiz';
+    if(curCat > 0){
+      var matchingCat = C().find(function(x){return x.id===curCat;});
+      if(matchingCat) heading = matchingCat.name;
+    }
+    if(searchQ) heading = '"' + searchQ + '" için arama sonuçları';
+    
+    html += '<div class="sec">' +
+      '<div class="sec-hd"><h2>' + heading + '</h2></div>' +
+      '<div class="pg">';
+      
+      var filtered = P().filter(function(p){
+        if(searchQ){
+          return p.name.toLowerCase().indexOf(searchQ.toLowerCase()) > -1 || 
+                 p.code.toLowerCase().indexOf(searchQ.toLowerCase()) > -1;
+        }
+        if(curCat > 0) return p.catId === curCat;
+        return true;
+      });
+      
+      if(filtered.length === 0){
+        html += '<div style="grid-column:1/-1;text-align:center;padding:80px 20px;color:var(--m);">Aradığınız kriterlere uygun ürün bulunamadı.</div>';
+      } else {
+        filtered.forEach(function(p){
+          var badgeHtml = p.badge ? '<div class="pc-bdg bn">' + p.badge + '</div>' : '';
+          var oldPriceHtml = p.oldPrice ? '<span class="pc-old">' + p.oldPrice.toLocaleString('tr-TR', {minimumFractionDigits:2}) + ' ₺</span>' : '';
           
-          '<!-- Sağ Kolon: Özet ve Banka Bilgileri -->' +
-          '<div class="co-sidebar">' +
-            '<div class="co-box">' +
-              '<h2 class="co-box-title">Sipariş Özeti</h2>' +
-              '<div style="max-height:220px; overflow-y:auto; margin-bottom:10px; padding-right:6px;">' +
-                summaryItemsHtml +
+          html += '<div class="pc" onclick="if(!event.target.closest(\'button\'))openModal(' + p.id + ')">' +
+            '<div class="pc-img">' +
+              badgeHtml +
+              (p.img ? '<img src="' + p.img + '" alt="' + p.name + '">' : '<div class="pc-no">Görsel Yok</div>') +
+            '</div>' +
+            '<div class="pc-body">' +
+              '<h3>' + p.name + '</h3>' +
+              '<div class="pc-code">' + p.code + '</div>' +
+              '<div class="pc-price-wrap">' +
+                '<span class="pc-price">' + p.price.toLocaleString('tr-TR', {minimumFractionDigits:2}) + ' ₺</span>' +
+                oldPriceHtml +
               '</div>' +
-              '<div class="co-summary-total">' +
-                '<span>Ödenecek Toplam:</span>' +
-                '<span class="co-summary-total-price">' + cartTotal.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ₺</span>' +
+              '<div class="pc-unit">Fiyat / ' + p.unit + '</div>' +
+              '<div class="pc-foot">' +
+                '<button class="pc-btn pc-i" onclick="openModal(' + p.id + ')">İncele</button>' +
+                '<button class="pc-btn pc-q" onclick="addToCart(' + p.id + ')">Sepete Ekle</button>' +
               '</div>' +
             '</div>' +
-            
-            '<div class="co-box" style="border-color:rgba(232,88,10,0.18);">' +
-              '<h2 class="co-box-title">Havale/EFT Banka Hesap Bilgimiz</h2>' +
-              '<p style="color:var(--m); font-size:12.5px; line-height:1.6; margin-bottom:14px;">' +
-                'Siparişinizi tamamladıktan sonra lütfen aşağıdaki IBAN adresine sipariş tutarını havale ediniz. İşlemlerinizin hızlanması için dekontunuzu göndermeyi unutmayınız.' +
-              '</p>' +
-              '<div class="co-iban-box" onclick="copyIban()">' +
-                '<strong style="display:block; font-size:11px; color:var(--gold); letter-spacing:0.8px; text-transform:uppercase;">BANKA ALICI ADI</strong>' +
-                '<p style="font-size:13.5px; color:var(--t); font-weight:600; margin-top:3px;">' + esc(s.ibanName) + '</p>' +
-                '<div class="co-iban-val">' +
-                  '<span>' + esc(s.iban) + '</span>' +
-                  '<span>Kopyala</span>' +
-                '</div>' +
+          '</div>';
+        });
+      }
+      
+    html += '</div></div>';
+    main.innerHTML = html;
+    initSlider();
+    
+  } else if(curPage === 'contact'){
+    main.innerHTML = '<div class="pg-hd">' +
+      '<div class="pg-bc"><a onclick="goHome()">Anasayfa</a> / İletişim</div>' +
+      '<h1>İletişim Bilgileri</h1>' +
+    '</div>' +
+    '<div class="pg-body" style="max-width:800px;">' +
+      '<div class="bank" style="margin-bottom:24px;">' +
+        '<strong>Müşteri Hattı & WhatsApp</strong>' +
+        '<p style="font-size:18px;font-weight:600;color:var(--gold);margin-top:6px;">' + S().phone + '</p>' +
+      '</div>' +
+      '<div class="bank" style="margin-bottom:24px;">' +
+        '<strong>E-posta Adresi</strong>' +
+        '<p>' + S().email + '</p>' +
+      '</div>' +
+      '<div class="bank">' +
+        '<strong>Fabrika / Adres</strong>' +
+        '<p>' + S().address + '</p>' +
+      '</div>' +
+    '</div>';
+  } else if(curPage === 'checkout') {
+    var total = getCartTotal();
+    var qty = getCartQty();
+    
+    var html = '<div class="pg-hd">' +
+      '<div class="pg-bc"><a onclick="goHome()">Anasayfa</a> / Sipariş Tamamlama</div>' +
+      '<h1>Sipariş ve Ödeme Bilgileri</h1>' +
+    '</div>' +
+    '<div class="pg-body">' +
+      '<div class="checkout-layout">' +
+        // FORM PANEL
+        '<div class="co-form-panel">' +
+          '<h3 class="co-box-title" style="margin-bottom:24px;border:none;padding:0;">Teslimat Bilgileri</h3>' +
+          '<form id="checkoutForm" onsubmit="submitOrder(event)">' +
+            '<div class="co-form-group">' +
+              '<label>Adınız Soyadınız *</label>' +
+              '<input type="text" id="coName" class="co-input" required placeholder="Örn: Ahmet Yılmaz">' +
+            '</div>' +
+            '<div class="co-form-group">' +
+              '<label>Telefon Numaranız *</label>' +
+              '<input type="tel" id="coPhone" class="co-input" required placeholder="Örn: 0532 123 45 67">' +
+            '</div>' +
+            '<div class="co-form-group">' +
+              '<label>Teslimat Adresi *</label>' +
+              '<textarea id="coAddress" class="co-input" required rows="4" placeholder="Lütfen kargo/teslimat adresinizi detaylıca yazınız..."></textarea>' +
+            '</div>' +
+            '<div class="co-form-group">' +
+              '<label>Varsa Sipariş Notu</label>' +
+              '<textarea id="coNote" class="co-input" rows="2" placeholder="Siparişinizle ilgili belirtmek istediğiniz detaylar..."></textarea>' +
+            '</div>' +
+            '<button type="submit" class="checkout-btn" style="margin-top:10px;">' +
+              'Havale ile Siparişi Onayla' +
+            '</button>' +
+          '</form>' +
+        '</div>' +
+        
+        // SIDEBAR
+        '<div class="co-sidebar">' +
+          '<div class="co-box">' +
+            '<h3 class="co-box-title">Alışveriş Özeti</h3>';
+            CART.forEach(function(item) {
+              var p = P().find(function(x){return x.id===item.id;});
+              if(!p) return;
+              html += '<div class="co-summary-item">' +
+                '<span>' + item.qty + ' x ' + p.name + '</span>' +
+                '<strong>' + (p.price * item.qty).toLocaleString('tr-TR', {minimumFractionDigits:2}) + ' ₺</strong>' +
+              '</div>';
+            });
+            html += '<div class="co-summary-total">' +
+              '<span>Genel Toplam:</span>' +
+              '<span class="co-summary-total-price">' + total.toLocaleString('tr-TR', {minimumFractionDigits:2}) + ' ₺</span>' +
+            '</div>' +
+          '</div>' +
+          
+          '<div class="co-box">' +
+            '<h3 class="co-box-title">Havale / EFT Hesap Bilgileri</h3>' +
+            '<p style="font-size:12.5px;color:var(--m);line-height:1.6;margin-bottom:14px;">' +
+              'Siparişinizin işleme alınabilmesi için aşağıdaki banka hesabına sipariş tutarını göndermeniz gerekmektedir. Gönderim esnasında açıklama kısmına adınızı yazmayı unutmayınız.' +
+            '</p>' +
+            '<div class="co-iban-box" onclick="copyIban()">' +
+              '<strong>' + S().brandName + ' Banka Hesabı</strong>' +
+              '<p style="font-size:13px;margin-top:4px;color:var(--t);">' + S().ibanName + '</p>' +
+              '<div class="co-iban-val">' +
+                '<span id="ibanStr">' + S().iban + '</span>' +
+                '<span>Kopyala</span>' +
               '</div>' +
             '</div>' +
           '</div>' +
         '</div>' +
-      '</div>';
-    setNav('');
+      '</div>' +
+    '</div>';
+    main.innerHTML = html;
+  } else if(curPage === 'order-success') {
+    var orderData = JSON.parse(localStorage.getItem('last_dekopanel_order') || '{}');
+    var total = parseFloat(orderData.total || 0);
+    
+    var html = '<div class="pg-hd" style="text-align:center;">' +
+      '<h1>Siparişiniz Alındı!</h1>' +
+    '</div>' +
+    '<div class="pg-body" style="max-width:700px;margin:0 auto;text-align:center;">' +
+      '<div style="margin-bottom:30px;display:flex;justify-content:center;">' +
+        '<div style="background:rgba(34,197,94,0.1);color:#22c55e;width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:36px;">✓</div>' +
+      '</div>' +
+      '<h2 style="font-family:\'Cormorant Garamond\',serif;font-size:26px;color:var(--w);margin-bottom:12px;">Sipariş Numaranız: #' + orderData.num + '</h2>' +
+      '<p style="font-size:14px;color:var(--t);line-height:1.7;margin-bottom:24px;">' +
+        'Sayın <strong>' + orderData.name + '</strong>, sipariş detaylarınız işletme sahibine iletilmek üzere hazırlanmıştır. ' +
+        'Havale işleminizi tamamladıktan sonra siparişinizi doğrulatmak için aşağıdaki yeşil butona basarak detayları WhatsApp\'tan gönderebilirsiniz.' +
+      '</p>' +
+      
+      '<div class="bank" style="text-align:left;border-radius:8px;margin-bottom:28px;">' +
+        '<strong style="font-size:11px;letter-spacing:1px;text-transform:uppercase;">Ödenecek Tutar</strong>' +
+        '<div style="font-family:\'Cormorant Garamond\',serif;font-size:36px;font-weight:700;color:var(--gold);margin:4px 0 14px;">' + total.toLocaleString('tr-TR', {minimumFractionDigits:2}) + ' ₺</div>' +
+        
+        '<strong style="font-size:11px;letter-spacing:1px;text-transform:uppercase;">Havale/EFT Yapılacak Banka Hesabı</strong>' +
+        '<div class="co-iban-box" onclick="copyIban()" style="background:var(--d2);border-color:rgba(232,88,10,0.2);margin-top:6px;">' +
+          '<strong>' + S().brandName + ' Banka Hesabı</strong>' +
+          '<p style="font-size:13px;color:var(--m);margin-top:2px;">' + S().ibanName + '</p>' +
+          '<div class="co-iban-val" style="background:var(--d3);">' +
+            '<span id="ibanStr">' + S().iban + '</span>' +
+            '<span>Kopyala</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      
+      '<a href="' + orderData.waLink + '" target="_blank" class="checkout-btn" style="background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;display:inline-flex;width:auto;padding:15px 32px;font-size:14px;margin-bottom:12px;">' +
+        'Siparişi WhatsApp\'tan Doğrula & Onayla' +
+      '</a>' +
+      '<div style="font-size:12px;color:var(--m);"><a onclick="goHome()" style="text-decoration:underline;cursor:pointer;">Alışverişe Devam Et</a></div>' +
+    '</div>';
+    main.innerHTML = html;
   }
 }
 
+// ORDER SUBMISSION
 function submitOrder(e) {
   e.preventDefault();
   var name = document.getElementById('coName').value.trim();
@@ -1151,148 +1187,215 @@ function submitOrder(e) {
   var address = document.getElementById('coAddress').value.trim();
   var note = document.getElementById('coNote').value.trim();
   
-  if (!name || !phone || !address) {
-    alert("Lütfen gerekli alanları doldurunuz.");
+  if(!name || !phone || !address) {
+    alert('Lütfen zorunlu alanları doldurunuz.');
     return;
   }
   
-  var s = S();
-  var wa = s.whatsapp.replace(/\D/g,'');
+  var total = getCartTotal();
+  var orderNum = Math.floor(100000 + Math.random() * 900000);
   
-  var itemsText = CART.map(function(item) {
+  // Create WhatsApp message template
+  var text = "🛍️ *DEKOPANEL SİPARİŞİ (Havale/EFT)*\n";
+  text += "-----------------------------------------\n";
+  text += "👤 *Müşteri:* " + name + "\n";
+  text += "📞 *Telefon:* " + phone + "\n";
+  text += "📍 *Adres:* " + address + "\n";
+  if(note) text += "📝 *Sipariş Notu:* " + note + "\n";
+  text += "\n📦 *Sipariş Detayları (No: #" + orderNum + "):*\n";
+  
+  CART.forEach(function(item) {
     var p = P().find(function(x){return x.id===item.id;});
-    if(!p) return '';
-    var itemTotal = p.price * item.qty;
-    return '• ' + item.qty + ' ' + p.unit + ' x ' + p.name + ' (' + p.code + ') - ' + itemTotal.toFixed(2) + ' ₺';
-  }).filter(Boolean).join('\n');
+    if(!p) return;
+    text += "- " + item.qty + " adet x " + p.name + " (" + (p.code || 'Kodsuz') + ") - " + (p.price * item.qty).toLocaleString('tr-TR', {minimumFractionDigits:2}) + " ₺\n";
+  });
   
-  var total = getCartTotal().toFixed(2);
+  text += "\n💵 *Toplam Ödenecek Tutar:* " + total.toLocaleString('tr-TR', {minimumFractionDigits:2}) + " ₺\n";
+  text += "-----------------------------------------\n";
+  text += "🏦 *Havale Yapılacak IBAN:* " + S().iban + "\n";
+  text += "👤 *Hesap Sahibi:* " + S().ibanName + "\n";
+  text += "-----------------------------------------\n";
+  text += "Lütfen havaleyi gerçekleştirdikten sonra bu mesajı gönderiniz.";
   
-  var msg = '🛍️ *YENİ SİPARİŞ (Havale/EFT)*\n';
-  msg += '---------------------------------\n';
-  msg += '👤 *Müşteri:* ' + name + '\n';
-  msg += '📞 *Telefon:* ' + phone + '\n';
-  msg += '📍 *Adres:* ' + address + '\n';
-  if(note) {
-    msg += '📝 *Not:* ' + note + '\n';
-  }
-  msg += '---------------------------------\n';
-  msg += '📦 *Ürünler:*\n' + itemsText + '\n';
-  msg += '---------------------------------\n';
-  msg += '💵 *Toplam Tutar:* ' + total + ' ₺\n';
-  msg += '🏦 *Havale Yapılacak Hesap:* ' + s.ibanName + '\n';
-  msg += 'IBAN: ' + s.iban + '\n';
-  msg += '---------------------------------\n';
-  msg += 'Lütfen havaleyi gerçekleştirdikten sonra bu mesajı göndererek onay alınız.';
+  var waLink = "https://wa.me/" + S().whatsapp + "?text=" + encodeURIComponent(text);
   
-  var encodedMsg = encodeURIComponent(msg);
-  var waUrl = 'https://wa.me/' + wa + '?text=' + encodedMsg;
+  // Store order details in LocalStorage for order-success page
+  localStorage.setItem('last_dekopanel_order', JSON.stringify({
+    num: orderNum,
+    name: name,
+    total: total,
+    waLink: waLink
+  }));
   
   // Clear cart
   CART = [];
   saveCart();
   updateCartUI();
   
-  // Show success state
-  showSuccessPage(name, total, waUrl);
+  // Go to success page
+  goPage('order-success');
 }
 
-function showSuccessPage(name, totalVal, waUrl) {
-  var s = S();
-  document.getElementById('main').innerHTML = 
-    '<div style="max-width:620px; margin:60px auto; padding:48px 32px; background:var(--d3); border:1px solid rgba(232,88,10,0.18); border-radius:12px; text-align:center; box-shadow:0 20px 40px rgba(0,0,0,0.5);">' +
-      '<div style="width:72px; height:72px; background:rgba(34,197,94,0.1); color:#22c55e; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 24px; border:2px solid #22c55e;">' +
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="36" height="36"><polyline points="20 6 9 17 4 12"/></svg>' +
-      '</div>' +
-      '<h1 style="font-family:\'Cormorant Garamond\',serif; font-size:32px; color:var(--w); margin-bottom:12px; font-weight:600;">Siparişiniz Alındı!</h1>' +
-      '<p style="color:var(--t); font-size:14px; line-height:1.7; margin-bottom:28px;">' +
-        'Sayın <strong>' + esc(name) + '</strong>, sipariş talebiniz başarıyla oluşturulmuştur. Ödemenizi tamamlamak için yapmanız gereken detaylar aşağıdadır.' +
-      '</p>' +
-      
-      '<div style="background:var(--d2); border:1px solid rgba(255,255,255,0.03); padding:20px; border-radius:8px; text-align:left; margin-bottom:28px;">' +
-        '<strong style="display:block; font-size:10.5px; color:var(--gold); letter-spacing:1px; text-transform:uppercase; margin-bottom:8px;">ÖDEME TUTARI & HESAP BİGSİ</strong>' +
-        '<div style="display:flex; justify-content:space-between; margin-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.03); padding-bottom:10px;">' +
-          '<span style="color:var(--m); font-size:13px;">Toplam Tutar:</span>' +
-          '<strong style="color:var(--gold); font-size:18px;">' + parseFloat(totalVal).toLocaleString('tr-TR', {minimumFractionDigits:2}) + ' ₺</strong>' +
-        '</div>' +
-        '<p style="font-size:13.5px; color:var(--t); font-weight:600; margin-bottom:6px;">' + esc(s.ibanName) + '</p>' +
-        '<div style="font-size:14px; color:var(--w); font-family:monospace; background:var(--d4); padding:10px 12px; border-radius:4px; display:flex; justify-content:space-between; align-items:center;">' +
-          '<span>' + esc(s.iban) + '</span>' +
-          '<button onclick="navigator.clipboard.writeText(\''+s.iban+'\');alert(\'IBAN Kopyalandı!\');" style="background:none; border:none; color:var(--gold); cursor:pointer; font-size:11px; font-weight:700; text-transform:uppercase; outline:none;">Kopyala</button>' +
-        '</div>' +
-      '</div>' +
-      
-      '<p style="color:var(--m); font-size:13px; line-height:1.6; margin-bottom:28px;">' +
-        'Sipariş işlemlerinizi başlatabilmemiz için lütfen aşağıdaki butona basarak **WhatsApp üzerinden siparişinizi onaylatın** ve havale dekontunuzu bize gönderin.' +
-      '</p>' +
-      
-      '<a href="' + waUrl + '" target="_blank" style="background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff; padding:16px 32px; font-size:14px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:10px; border-radius:4px; box-shadow:0 8px 20px rgba(22,163,74,0.35); transition:all 0.3s; width:100%; justify-content:center;">' +
-        waIcon() + ' Siparişi WhatsApp İle Onayla & Dekont Gönder' +
-      '</a>' +
-      
-      '<div style="margin-top:28px;">' +
-        '<a onclick="goHome()" style="color:var(--m); font-size:13px; cursor:pointer; text-decoration:underline;">Alışverişe Devam Et</a>' +
-      '</div>' +
-    '</div>';
+function copyIban() {
+  var text = document.getElementById('ibanStr').textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    alert('IBAN numarası panoya kopyalandı.');
+  }).catch(function() {
+    // Fallback
+    var input = document.createElement('input');
+    input.setAttribute('value', text);
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand('copy');
+    document.body.removeChild(input);
+    alert('IBAN numarası panoya kopyalandı.');
+  });
 }
 
-function liveSearch(q){
-  var d=document.getElementById('srchDrop');
-  if(!q||q.length<2){d.classList.remove('open');return;}
-  var res=P().filter(function(p){return p.active&&(p.name.toLowerCase().includes(q.toLowerCase())||p.code.toLowerCase().includes(q.toLowerCase()));}).slice(0,6);
-  if(!res.length){d.classList.remove('open');return;}
-  d.innerHTML=res.map(function(p){
-    return '<div class="srch-item" onclick="openModal('+p.id+');closeSrch()">'+
-      (p.img&&p.img.length>5?'<img src="'+p.img+'" alt="">':'')+
-      '<div><div class="si-name">'+esc(p.name)+'</div><div class="si-price">'+p.price.toLocaleString('tr-TR', {minimumFractionDigits:2})+' ₺</div></div></div>';
-  }).join('');
-  d.classList.add('open');
+// SLIDER FUNCTIONS
+function initSlider(){
+  var s = document.getElementById('slides');
+  if(!s) return;
+  var count = BN().length;
+  var dotsEl = document.getElementById('sDots');
+  var dotsHtml = '';
+  for(var i=0; i<count; i++){
+    dotsHtml += '<div class="s-dot ' + (i===0?'on':'') + '" onclick="goSlide(' + i + ')"></div>';
+  }
+  dotsEl.innerHTML = dotsHtml;
+  slideIdx = 0;
+  clearInterval(slideInt);
+  slideInt = setInterval(function(){ moveSlide(1); }, 6000);
 }
-function closeSrch(){document.getElementById('srchDrop').classList.remove('open');}
+
+function goSlide(idx){
+  var s = document.getElementById('slides');
+  if(!s) return;
+  var count = BN().length;
+  if(idx >= count) idx = 0;
+  if(idx < 0) idx = count - 1;
+  slideIdx = idx;
+  s.style.transform = 'translateX(-' + (slideIdx * 100) + '%)';
+  var dots = document.querySelectorAll('.s-dot');
+  dots.forEach(function(d, i){
+    if(i===slideIdx) d.classList.add('on');
+    else d.classList.remove('on');
+  });
+}
+
+function moveSlide(dir){
+  goSlide(slideIdx + dir);
+}
+
+// MODAL CONTROLLERS
+function openModal(id) {
+  var p = P().find(function(x){return x.id === id;});
+  if(!p) return;
+  
+  var modal = document.getElementById('prodModal');
+  var body = document.getElementById('modalBody');
+  
+  var allImgs = [p.img];
+  if(p.extraImgs) {
+    p.extraImgs.forEach(function(img){ allImgs.push(img); });
+  }
+  
+  var galleryHtml = '<div class="modal-main-img" id="modalMainImg"><img src="' + p.img + '" alt=""></div>';
+  if(allImgs.length > 1) {
+    galleryHtml += '<div class="modal-thumbs">';
+    allImgs.forEach(function(img, i){
+      galleryHtml += '<div class="modal-thumb ' + (i===0?'act':'') + '" onclick="setModalImg(this, \'' + img + '\')"><img src="' + img + '" alt=""></div>';
+    });
+    galleryHtml += '</div>';
+  }
+  
+  var oldPriceHtml = p.oldPrice ? '<span class="m-old">' + p.oldPrice.toLocaleString('tr-TR', {minimumFractionDigits:2}) + ' ₺</span>' : '';
+  
+  var infoHtml = '<div class="modal-info">' +
+    '<h1 class="m-name">' + p.name + '</h1>' +
+    '<div class="m-code">Ürün Kodu: ' + (p.code || 'Belirtilmemiş') + '</div>' +
+    '<div class="m-price-wrap">' +
+      '<span class="m-price">' + p.price.toLocaleString('tr-TR', {minimumFractionDigits:2}) + ' ₺</span>' +
+      oldPriceHtml +
+    '</div>' +
+    '<div class="m-unit">Fiyat / ' + p.unit + '</div>' +
+    '<div class="m-desc">' + p.desc + '</div>' +
+    '<button class="wa-big" onclick="addToCart(' + p.id + '); closeModal();">Sepete Ekle</button>' +
+    '<a class="wa-big wa-secondary" href="https://wa.me/' + S().whatsapp + '?text=' + encodeURIComponent('Merhaba, ' + p.name + ' (' + p.code + ') hakkında bilgi alabilir miyim?') + '" target="_blank">' +
+      'WhatsApp ile Bilgi Al' +
+    '</a>' +
+  '</div>';
+  
+  body.innerHTML = galleryHtml + infoHtml;
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function setModalImg(thumbEl, imgUrl) {
+  var main = document.getElementById('modalMainImg').querySelector('img');
+  if(main) main.src = imgUrl;
+  
+  var thumbs = document.querySelectorAll('.modal-thumb');
+  thumbs.forEach(function(t){ t.classList.remove('act'); });
+  thumbEl.classList.add('act');
+}
+
+function closeModal() {
+  var modal = document.getElementById('prodModal');
+  if(modal) modal.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// SEARCH
+function liveSearch(val){
+  var drop = document.getElementById('srchDrop');
+  if(!val.trim()){
+    drop.classList.remove('open');
+    return;
+  }
+  var matches = P().filter(function(p){
+    return p.name.toLowerCase().indexOf(val.toLowerCase()) > -1 || 
+           p.code.toLowerCase().indexOf(val.toLowerCase()) > -1;
+  }).slice(0, 5);
+  
+  if(matches.length === 0){
+    drop.innerHTML = '<div style="padding:12px;font-size:12.5px;color:var(--m);text-align:center;">Sonuç bulunamadı.</div>';
+  } else {
+    var html = '';
+    matches.forEach(function(p){
+      html += '<div class="srch-item" onclick="openModal(' + p.id + '); closeSrch();">' +
+        '<img src="' + p.img + '" alt="">' +
+        '<div>' +
+          '<div class="si-name">' + p.name + '</div>' +
+          '<div class="si-price">' + p.price.toLocaleString('tr-TR', {minimumFractionDigits:2}) + ' ₺</div>' +
+        '</div>' +
+      '</div>';
+    });
+    drop.innerHTML = html;
+  }
+  drop.classList.add('open');
+}
+
 function doSearch(){
-  var q=document.getElementById('srchInp').value.trim();
-  if(!q) return;
-  var res=P().filter(function(p){return p.active&&(p.name.toLowerCase().includes(q.toLowerCase())||p.code.toLowerCase().includes(q.toLowerCase()));});
-  document.getElementById('main').innerHTML=
-    '<div class="sec"><div class="sec-hd"><h2>"'+esc(q)+'" için '+res.length+' sonuç</h2></div><div class="pg" id="prodGrid"></div></div>';
-  renderGrid(res);
-  closeSrch();
+  var val = document.getElementById('srchInp').value;
+  if(val.trim()){
+    searchQ = val;
+    curPage = 'home';
+    curCat = 0;
+    closeSrch();
+    render();
+  }
 }
 
-function buildFooter(){
-  var s=S(), cats=C();
-  document.getElementById('ftEl').innerHTML=
-    '<div class="ft-grid">'+
-    '<div><div class="ft-brand">'+s.brandName+'</div><div class="ft-desc">'+s.about+'</div>'+
-    '<div class="ft-soc">'+
-    (s.instagram?'<a href="'+s.instagram+'" target="_blank">📸</a>':'')+
-    (s.facebook?'<a href="'+s.facebook+'" target="_blank">👍</a>':'')+
-    (s.whatsapp?'<a href="https://wa.me/'+s.whatsapp+'" target="_blank">💬</a>':'')+
-    '</div></div>'+
-    '<div class="ft-col"><h4>Kategoriler</h4>'+cats.map(function(c){return '<a onclick="goCat('+c.id+')">'+c.name+'</a>';}).join('')+'</div>'+
-    '<div class="ft-col"><h4>İletişim</h4>'+
-    (s.phone?'<a href="tel:'+s.phone+'">📞 '+s.phone+'</a>':'')+
-    (s.email?'<a href="mailto:'+s.email+'">✉️ '+s.email+'</a>':'')+
-    (s.address?'<p>📍 '+s.address+'</p>':'')+
-    '</div></div>'+
-    '<div class="ft-bot"><span>© '+new Date().getFullYear()+' '+s.brandName+' — Tüm hakları saklıdır.</span></div>';
+function closeSrch(){
+  document.getElementById('srchDrop').classList.remove('open');
 }
 
-function setNav(id){
-  document.querySelectorAll('.nav-in a').forEach(function(a){a.classList.remove('act');});
-  var el=document.getElementById(id);
-  if(el) el.classList.add('act');
-}
-
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-
-function waIcon(){return '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347M12.05 21.785h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413"/></svg>';}
-
-// RUN INITIALIZATION
+// APP INITIALIZATION
 loadCart();
-buildNav();
-goHome();
-buildFooter();
+renderNav();
+render();
+renderFooter();
 updateCartUI();
 </script>
 </body>
